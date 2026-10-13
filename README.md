@@ -5,13 +5,14 @@ Build OS address data for `uk_address_matcher` from either NGD (National Geograp
 ## Requirements
 
 - Python `3.10+`
-- Local archives, extracted CSV, or prepared Parquet for local processing
-- Network access and OS Data Hub credentials for downloads or remote listing:
+- OS Data Hub package and version IDs
+- Network access to OS Downloads API for downloads or remote listing
+- Existing downloaded archives if you want to run offline without re-downloading
+- Credentials in `.env`:
   - `OS_PROJECT_API_KEY`
   - `OS_PROJECT_API_SECRET`
-- Non-empty `os_downloads.package_id` and `version_id` in every config, including local-only builds
 
-Already-local data can be processed without OS credentials or downloads. See [Local ABP data without OS downloads](#local-abp-data-without-os-downloads) for supported entry points. `--list-only` still requires network access because it queries remote package metadata.
+If the required zip files already exist in your downloads directory, the build can now continue offline without contacting OS Data Hub. `--list-only` still requires network access because it queries remote package metadata.
 
 ## Install from PyPI
 
@@ -58,7 +59,7 @@ ukam-os-build --help
 ukam-os-setup --config-out config.yaml
 ```
 
-This writes `config.yaml` and, by default, `.env` placeholders if `.env` does not already exist. The setup flow asks which source to use (`ngd` or `abp`) and stores it in `config.yaml`.
+The wizard first asks whether to download from OS Data Hub or process previous downloads, then which source to use (`ngd` or `abp`). Continue below for downloads; for local archives, follow the printed Python API commands or [the local ABP instructions](#local-abp-data-without-os-downloads).
 
 2) Add real credentials
 
@@ -159,32 +160,24 @@ ukam-os-build --config config.yaml
 
 ## Local ABP data without OS downloads
 
-Use the public `run_from_config` API to process licensed ABP data that is already available locally, including mounted storage. No imports from internal transform modules are needed.
+Local ABP data uses the same processing stages as downloaded data. Configure the input directory and skip the download stage.
 
 ### Start from local archives
 
-Save this as `config.yaml` beside the `licensed` directory:
+Run `ukam-os-setup --config-out config.yaml`, answer **No** to downloading from OS Data Hub, select `abp` and enter the directory containing your ZIP archives. The wizard sets `paths.overrides.downloads_dir` and leaves `.env` unchanged.
+
+For an existing ABP config (`source.type: abp`), change the input path:
 
 ```yaml
-source:
-  type: abp
-
 paths:
   work_dir: ./work
   overrides:
     downloads_dir: ./licensed/archives
-
-os_downloads:
-  package_id: "local"
-  version_id: "local"
-
-processing:
-  num_chunks: 10
 ```
 
-The local archive directory must contain the ABP `.zip` files directly, not nested in version subdirectories. Package and version IDs are still required by settings validation. The non-empty `local` labels above are only for local processing; use actual OS Data Hub IDs before downloading or listing remotely.
+ZIP files must be directly inside that directory. Paths are relative to `config.yaml`. Keep the other settings; package and version IDs must remain non-empty, but may both be `"local"` when unknown. These labels are not valid for OS downloads or remote listing.
 
-Run each stage through the public API:
+Run the existing processing stages through the public API:
 
 ```python
 from ukam_os_builder import run_from_config
@@ -193,8 +186,6 @@ run_from_config("config.yaml", step="extract", check_api=False)
 run_from_config("config.yaml", step="split", check_api=False)
 run_from_config("config.yaml", step="flatfile", check_api=False)
 ```
-
-These stages extract ABP CSV into `work/extracted`, split it into typed Parquet under `work/parquet/raw`, and write canonical address variants under `work/output`.
 
 `check_api=False` disables the OS metadata preflight, even when credentials are present in the environment or `.env`. It does not disable the download stage or remote listing: do not select `all`, `download`, or `list_only=True` for this local-only workflow. The CLI does not expose `check_api`; use the Python API when no OS requests are permitted.
 

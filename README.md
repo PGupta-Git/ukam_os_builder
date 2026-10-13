@@ -520,6 +520,17 @@ Override keys replace derived defaults. Relative local paths are resolved relati
 
 </details>
 
+## Pre-commit security checks
+
+Install the development tools and enable the Git hook:
+
+```bash
+uv sync --all-extras --all-groups
+uv run pre-commit install
+```
+
+The commit hook scans staged text files for secrets, staged application Python files with Bandit, and audits the locked dependency graph when `pyproject.toml` or `uv.lock` changes. Dependency auditing requires network access. To scan all tracked files manually, run `uv run pre-commit run --all-files`.
+
 ## Smoke test
 
 ```bash

@@ -1,0 +1,26 @@
+repos:
+  - repo: local
+    hooks:
+      - id: detect-secrets
+        name: Scan staged text files for secrets
+        entry: uv run --no-sync detect-secrets-hook --baseline security/secrets.baseline
+        language: system
+        exclude: ^security/secrets\.baseline$
+        types: [text]
+      - id: bandit
+        name: Scan staged application code with Bandit
+        entry: uv run --no-sync bandit -q --confidence-level medium --baseline security/bandit.baseline
+        language: system
+        files: ^ukam_os_builder/
+        types: [python]
+      - id: pip-audit
+        name: Audit locked Python dependencies
+        entry: uv run --no-sync python scripts/audit_dependencies.py
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+      - id: zizmor
+        name: Audit GitHub Actions workflows
+        entry: uv run --no-sync zizmor --persona auditor
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
